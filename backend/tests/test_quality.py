@@ -30,3 +30,11 @@ def test_ordinary_recommendation_preserved():
     rec=Recommendation(intent="clarification",suggestion="How many leads do you handle?",
                        reason="Discovery",next_action="Qualify",source_ids=[])
     assert enforce_claims(rec,[]) == rec
+
+def test_15_person_team_plan_not_assumed():
+    turns=[Turn(event_id="x",speaker="customer",text="We have 15 sales reps. Your product is expensive.")]
+    rec=Recommendation(intent="pricing_objection",
+                       suggestion="The Starter plan is the right fit for your team.",
+                       reason="Plan",next_action="Buy",source_ids=["pricing-002"])
+    result=enforce_claims(rec,[("pricing-002","Starter for a small team")],turns)
+    assert "starter plan is the right fit" not in result.suggestion.lower()

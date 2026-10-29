@@ -110,14 +110,17 @@ def retrieval_query(turns: list[Turn]) -> str:
         hints.append("trial demo policy")
     return latest + " " + " ".join(hints)
 
-def enforce_claims(rec: Recommendation, passages: list[tuple[str,str]]) -> Recommendation:
+def enforce_claims(rec: Recommendation, passages: list[tuple[str,str]], turns: list[Turn] | None = None) -> Recommendation:
     """Fail closed on common misleading sales promises; not a complete factual verifier."""
     statement = rec.suggestion
     forbidden = (
         r"\b(?:free demo|free trial|without extra cost|no extra cost|at no cost|"
         r"guaranteed|100% guaranteed|special discount|discount guaranteed)\b"
     )
-    if re.search(forbidden, statement, re.IGNORECASE):
+    customer_context = " ".join(t.text for t in (turns or []) if t.speaker == "customer")
+    plan_claim = bool(re.search(r"\b(?:starter|growth) plan\b", statement, re.I))
+    team_15 = bool(re.search(r"\b(?:15|fifteen)\b", customer_context, re.I))
+    if re.search(forbidden, statement, re.IGNORECASE) or (plan_claim and team_15):
         return Recommendation(
             intent=rec.intent,
             suggestion="I understand your concern. What does your current workflow cost in time and missed follow-ups? We can compare that with the documented subscription plans.",
@@ -185,7 +188,7 @@ async def recommend(session:Session,ws:WebSocket,session_id:str,version:int):
         retrieval_ms=round((time.perf_counter()-start)*1000)
         result=await generate(turns,passages)
         generation_ms=round((time.perf_counter()-start)*1000)-retrieval_ms
-        result=enforce_claims(result,passages)
+        result=enforce_claims(result,passages,turns)
         if session.closed or version != session.version:
             return
         async with session.send_lock:

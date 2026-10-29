@@ -13,6 +13,8 @@ from dotenv import load_dotenv
 
 load_dotenv()
 logger = logging.getLogger(__name__)
+from . import ollama_backend
+PROVIDER = os.getenv("AI_PROVIDER", "ollama").lower()
 ROOT = Path(__file__).resolve().parents[2]
 app = FastAPI(title="Real-time Sales Copilot")
 app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:5173","http://127.0.0.1:5173"], allow_methods=["*"], allow_headers=["*"])
@@ -49,15 +51,20 @@ class Knowledge:
                     self.sections.append((f"{p.stem}-{i+1:03d}", section.strip()))
         self.index = None
         self.embedding_client = None
-        if os.getenv("OPENAI_API_KEY") and os.getenv("USE_FAISS","1") == "1":
+        if os.getenv("USE_FAISS","1") == "1" and (PROVIDER == "ollama" or (PROVIDER == "openai" and os.getenv("OPENAI_API_KEY"))):
             try:
                 import faiss
                 import numpy as np
-                from openai import OpenAI
-                client = OpenAI()
-                model = os.getenv("EMBEDDING_MODEL","text-embedding-3-small")
-                result = client.embeddings.create(model=model,input=[t for _,t in self.sections])
-                matrix = np.asarray([x.embedding for x in result.data],dtype="float32")
+                if PROVIDER == "ollama":
+                    vectors = ollama_backend.embeddings([t for _,t in self.sections])
+                    client, model = "ollama", None
+                else:
+                    from openai import OpenAI
+                    client = OpenAI()
+                    model = os.getenv("EMBEDDING_MODEL","text-embedding-3-small")
+                    result = client.embeddings.create(model=model,input=[t for _,t in self.sections])
+                    vectors = [x.embedding for x in result.data]
+                matrix = np.asarray(vectors,dtype="float32")
                 faiss.normalize_L2(matrix)
                 self.index = faiss.IndexFlatIP(matrix.shape[1])
                 self.index.add(matrix)
@@ -71,8 +78,12 @@ class Knowledge:
                 import faiss
                 import numpy as np
                 client,model=self.embedding_client
-                result=client.embeddings.create(model=model,input=query)
-                vector=np.asarray([result.data[0].embedding],dtype="float32")
+                if client == "ollama":
+                    vectors = ollama_backend.embeddings([query])
+                else:
+                    result=client.embeddings.create(model=model,input=query)
+                    vectors=[result.data[0].embedding]
+                vector=np.asarray(vectors,dtype="float32")
                 faiss.normalize_L2(vector)
                 _,indices=self.index.search(vector,min(k,len(self.sections)))
                 return [self.sections[i] for i in indices[0] if i>=0]
@@ -87,7 +98,14 @@ sessions: dict[str,Session]={}
 async def generate(turns: list[Turn], passages: list[tuple[str,str]]) -> Recommendation:
     latest=turns[-1].text.lower()
     source_ids=[sid for sid,_ in passages]
-    if os.getenv("OPENAI_API_KEY"):
+    if PROVIDER == "ollama":
+        context="\n".join(f"{turn.speaker}: {turn.text}" for turn in turns[-12:])
+        sources="\n\n".join(f"SOURCE {sid}: {chunk}" for sid,chunk in passages)
+        data=await ollama_backend.recommendation(context,sources,Recommendation.model_json_schema())
+        rec=Recommendation.model_validate(data)
+        rec.source_ids=[sid for sid in rec.source_ids if sid in source_ids]
+        return rec
+    if PROVIDER == "openai" and os.getenv("OPENAI_API_KEY"):
         from openai import AsyncOpenAI
         client=AsyncOpenAI()
         context="\n".join(f"{turn.speaker}: {turn.text}" for turn in turns[-12:])
@@ -134,7 +152,7 @@ async def recommend(session:Session,ws:WebSocket,session_id:str,version:int):
 
 @app.get("/health")
 def health():
-    return {"status":"ok","knowledge_chunks":len(knowledge.sections),"mode":"openai" if os.getenv("OPENAI_API_KEY") else "offline-demo"}
+    return {"status":"ok","knowledge_chunks":len(knowledge.sections),"retrieval":"faiss" if knowledge.index is not None else "keyword-fallback","chat_model":ollama_backend.CHAT_MODEL if PROVIDER=="ollama" else os.getenv("OPENAI_MODEL") if PROVIDER=="openai" else None,"mode":PROVIDER if PROVIDER in ("ollama","openai") else "offline-demo"}
 
 @app.websocket("/ws/sessions/{session_id}")
 async def websocket_session(ws:WebSocket,session_id:str):

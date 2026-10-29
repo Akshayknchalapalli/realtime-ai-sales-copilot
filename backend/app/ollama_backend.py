@@ -28,9 +28,10 @@ async def recommendation(context: str, sources: str, schema: dict) -> dict:
     payload = {
         "model": CHAT_MODEL,
         "stream": False,
+        "keep_alive": "30m",
         "think": False,
         "format": schema,
-        "options": {"temperature": 0.2, "num_predict": 320},
+        "options": {"temperature": 0.1, "num_predict": 180, "num_ctx": 4096},
         "messages": [
             {"role": "system", "content": instructions},
             {"role": "user", "content": f"CONVERSATION:\n{context}\n\nKNOWLEDGE:\n{sources}\n\nReturn the JSON recommendation."},

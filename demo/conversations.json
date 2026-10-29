@@ -1,0 +1,30 @@
+[
+  {
+    "speaker": "sdr",
+    "text": "How do you manage your leads today?"
+  },
+  {
+    "speaker": "customer",
+    "text": "We are using Excel, and we keep missing follow-ups."
+  },
+  {
+    "speaker": "sdr",
+    "text": "How many people are on your team?"
+  },
+  {
+    "speaker": "customer",
+    "text": "Around 15, but your subscription looks expensive."
+  },
+  {
+    "speaker": "sdr",
+    "text": "Are there any other concerns?"
+  },
+  {
+    "speaker": "customer",
+    "text": "Does FlowDesk integrate with Salesforce?"
+  },
+  {
+    "speaker": "customer",
+    "text": "Can we schedule a demo?"
+  }
+]

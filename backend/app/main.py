@@ -95,6 +95,51 @@ class Knowledge:
 knowledge=Knowledge()
 sessions: dict[str,Session]={}
 
+def retrieval_query(turns: list[Turn]) -> str:
+    """Prioritize the latest customer statement for retrieval."""
+    latest = next((t.text for t in reversed(turns) if t.speaker == "customer"), "")
+    q = latest.lower()
+    hints = []
+    if any(w in q for w in ("price", "expensive", "cost", "budget")):
+        hints.append("pricing subscription plans objection")
+    if any(w in q for w in ("salesforce", "integration", "integrate", "connect")):
+        hints.append("Salesforce integrations unsupported")
+    if any(w in q for w in ("follow-up", "excel", "reminders", "leads")):
+        hints.append("lead follow-up reminders features")
+    if any(w in q for w in ("demo", "trial", "free")):
+        hints.append("trial demo policy")
+    return latest + " " + " ".join(hints)
+
+def enforce_claims(rec: Recommendation, passages: list[tuple[str,str]]) -> Recommendation:
+    """Fail closed on common misleading sales promises; not a complete factual verifier."""
+    statement = rec.suggestion
+    forbidden = (
+        r"\\b(?:free demo|free trial|without extra cost|no extra cost|at no cost|"
+        r"guaranteed|100% guaranteed|special discount|discount guaranteed)\\b"
+    )
+    if re.search(forbidden, statement, re.IGNORECASE):
+        return Recommendation(
+            intent=rec.intent,
+            suggestion="I understand your concern. What does your current workflow cost in time and missed follow-ups? We can compare that with the documented subscription plans.",
+            reason="Removed a potentially unsupported commercial promise.",
+            next_action="Clarify needs and discuss documented product value.",
+            source_ids=[sid for sid, _ in passages],
+        )
+    if re.search(r"\\bsalesforce\\b", statement, re.IGNORECASE) and re.search(
+        r"(?:we|flowdesk|it) (?:support|supports|integrate|integrates|connect|connects).*salesforce",
+        statement, re.IGNORECASE
+    ):
+        return Recommendation(
+            intent="integration_question",
+            suggestion="We don't currently support a native Salesforce integration. Which information would you need to synchronize?",
+            reason="Salesforce integration is not supported in the product documentation.",
+            next_action="Understand integration requirements.",
+            source_ids=[sid for sid, _ in passages if sid.startswith("integrations")],
+        )
+    return rec
+
+
+
 async def generate(turns: list[Turn], passages: list[tuple[str,str]]) -> Recommendation:
     latest=turns[-1].text.lower()
     source_ids=[sid for sid,_ in passages]
@@ -136,12 +181,15 @@ async def recommend(session:Session,ws:WebSocket,session_id:str,version:int):
     start=time.perf_counter()
     try:
         turns=list(session.turns)
-        passages=await asyncio.to_thread(knowledge.search," ".join(turn.text for turn in turns[-3:]))
+        passages=await asyncio.to_thread(knowledge.search,retrieval_query(turns),k=5)
+        retrieval_ms=round((time.perf_counter()-start)*1000)
         result=await generate(turns,passages)
+        generation_ms=round((time.perf_counter()-start)*1000)-retrieval_ms
+        result=enforce_claims(result,passages)
         if session.closed or version != session.version:
             return
         async with session.send_lock:
-            await ws.send_json({"type":"recommendation.ready","session_id":session_id,"conversation_version":version,"data":result.model_dump(),"latency_ms":round((time.perf_counter()-start)*1000)})
+            await ws.send_json({"type":"recommendation.ready","session_id":session_id,"conversation_version":version,"data":result.model_dump(),"latency_ms":round((time.perf_counter()-start)*1000),"timings":{"retrieval_ms":retrieval_ms,"generation_ms":generation_ms}})
     except asyncio.CancelledError:
         raise
     except Exception:
@@ -160,7 +208,7 @@ async def websocket_session(ws:WebSocket,session_id:str):
     session=Session()
     sessions[session_id]=session
     async with session.send_lock:
-        await ws.send_json({"type":"session.started","session_id":session_id,"mode":"openai" if os.getenv("OPENAI_API_KEY") else "offline-demo"})
+        await ws.send_json({"type":"session.started","session_id":session_id,"mode":PROVIDER if PROVIDER in ("ollama","openai") else "offline-demo"})
     try:
         while True:
             event=await ws.receive_json()

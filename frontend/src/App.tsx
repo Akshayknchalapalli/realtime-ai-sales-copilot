@@ -28,7 +28,7 @@ export default function App(){
  useEffect(()=>{
   const socket=new WebSocket(`${import.meta.env.VITE_WS_URL || 'ws://localhost:8000'}/ws/sessions/${sessionId}`);
   ws.current=socket;
-  socket.onopen=()=>setConnected(true);
+  socket.onopen=()=>{setConnected(true);setError('')};
   socket.onclose=()=>{setConnected(false);playback.current=false;setPlaying(false)};
   socket.onerror=()=>setError('WebSocket connection failed. Start FastAPI on port 8000.');
   socket.onmessage=(message)=>{

@@ -114,8 +114,8 @@ def enforce_claims(rec: Recommendation, passages: list[tuple[str,str]]) -> Recom
     """Fail closed on common misleading sales promises; not a complete factual verifier."""
     statement = rec.suggestion
     forbidden = (
-        r"\\b(?:free demo|free trial|without extra cost|no extra cost|at no cost|"
-        r"guaranteed|100% guaranteed|special discount|discount guaranteed)\\b"
+        r"\b(?:free demo|free trial|without extra cost|no extra cost|at no cost|"
+        r"guaranteed|100% guaranteed|special discount|discount guaranteed)\b"
     )
     if re.search(forbidden, statement, re.IGNORECASE):
         return Recommendation(
@@ -125,7 +125,7 @@ def enforce_claims(rec: Recommendation, passages: list[tuple[str,str]]) -> Recom
             next_action="Clarify needs and discuss documented product value.",
             source_ids=[sid for sid, _ in passages],
         )
-    if re.search(r"\\bsalesforce\\b", statement, re.IGNORECASE) and re.search(
+    if re.search(r"\bsalesforce\b", statement, re.IGNORECASE) and re.search(
         r"(?:we|flowdesk|it) (?:support|supports|integrate|integrates|connect|connects).*salesforce",
         statement, re.IGNORECASE
     ):

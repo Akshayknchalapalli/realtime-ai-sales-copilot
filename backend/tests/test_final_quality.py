@@ -35,3 +35,24 @@ def test_csv_sync_word_order_reversed():
     r, changed = guard(base("integration_question","Synchronization with Salesforce is supported through CSV import."),"Do you support Salesforce integration?",[])
     assert changed
     assert "synchronization with Salesforce is supported" not in r["suggestion"]
+
+def test_pricing_objection_takes_precedence_over_switching():
+    from app.quality import latest_intent
+    customer="We use Excel and your CRM seems expensive. Why should we switch?"
+    assert latest_intent(customer) == "pricing_objection"
+    result,changed=guard(base("competitor_objection","What do you like about your current CRM?"),customer,[])
+    assert changed and result["intent"] == "pricing_objection"
+    assert "pricing" in result["suggestion"].lower()
+
+def test_unverified_third_party_salesforce_sync_removed():
+    rec=base("integration_question","FlowDesk does not support native Salesforce integration. Consider using a third-party tool for synchronization.")
+    result,changed=guard(rec,"Does FlowDesk integrate with Salesforce?",["integrations-003"])
+    assert changed
+    assert "third-party" not in result["suggestion"].lower()
+    assert "native Salesforce" in result["suggestion"]
+
+def test_third_party_workaround_in_next_action_removed():
+    rec=base("integration_question","We don't currently support native Salesforce integration.","Use an external integration tool to synchronize CRM data.")
+    result,changed=guard(rec,"Do you integrate with Salesforce?",[])
+    assert changed
+    assert "external integration tool" not in result["next_action"].lower()

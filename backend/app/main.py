@@ -14,6 +14,7 @@ from dotenv import load_dotenv
 load_dotenv()
 logger = logging.getLogger(__name__)
 from . import ollama_backend
+from .quality import guard
 PROVIDER = os.getenv("AI_PROVIDER", "ollama").lower()
 ROOT = Path(__file__).resolve().parents[2]
 app = FastAPI(title="Real-time Sales Copilot")
@@ -210,10 +211,12 @@ async def recommend(session:Session,ws:WebSocket,session_id:str,version:int):
         result=enforce_claims(result,passages,turns)
         latest_customer=next((t.text for t in reversed(turns) if t.speaker == 'customer'), '')
         result=validate_latest_intent(result,latest_customer,passages)
+        checked, corrected = guard(result.model_dump(),latest_customer,[sid for sid,_ in passages])
+        result=Recommendation.model_validate(checked)
         if session.closed or version != session.version:
             return
         async with session.send_lock:
-            await ws.send_json({"type":"recommendation.ready","session_id":session_id,"conversation_version":version,"data":result.model_dump(),"latency_ms":round((time.perf_counter()-start)*1000),"timings":{"retrieval_ms":retrieval_ms,"generation_ms":generation_ms}})
+            await ws.send_json({"type":"recommendation.ready","session_id":session_id,"conversation_version":version,"data":result.model_dump(),"latency_ms":round((time.perf_counter()-start)*1000),"timings":{"retrieval_ms":retrieval_ms,"generation_ms":generation_ms},"quality_corrected":corrected})
     except asyncio.CancelledError:
         raise
     except Exception:

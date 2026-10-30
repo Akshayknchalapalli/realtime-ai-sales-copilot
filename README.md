@@ -65,3 +65,25 @@ The tests use `AI_PROVIDER=offline` so they can run without downloaded models.
 - Keyword retrieval fallback is available if embeddings cannot initialize. Ollama generation failures are surfaced to the UI rather than falsely marked as successful AI inference.
 - To use OpenAI instead, set `AI_PROVIDER=openai`, provide `OPENAI_API_KEY`, and configure its models. For a deterministic demo use `AI_PROVIDER=offline`.
 - This interview prototype needs authentication, explicit recording consent, persistence, personal data controls, deeper evaluation, and production observability before real deployment.
+
+## Interview demo and final QA
+
+1. Start Ollama, FastAPI and Vite using the commands above.
+2. Verify `/health` reports `mode: ollama` and `retrieval: faiss`.
+3. Run `cd backend && python -m pytest -q`; from frontend run `npm run build`.
+4. In a new dashboard session, submit a **Customer** turn (not an SDR suggestion):
+   - Pricing: "We have 15 sales reps and miss follow-ups, but this seems expensive."
+   - Integration: "Does FlowDesk offer native Salesforce integration?"
+   - Buying: "Can we arrange a demo next week?"
+   - Competitor: "We already use another CRM. Why switch?"
+   - Feature: "Can it remind us about overdue follow-ups?"
+   - Unknown feature: "Can it automate WhatsApp voice calling?"
+5. Check the generated wording, intent, knowledge references, and retrieval / generation / total latency.
+6. Use **Use / Edit suggestion** to move a recommendation to the SDR composer. Edit it before sending. Or choose **Dismiss**.
+7. The backend applies deterministic validation to high-risk sales claims and switches to a safe, speakable recommendation when a known rule is broken. The WebSocket event includes `quality_corrected` to indicate this happened.
+
+### Interpreting the demo
+
+The customer and SDR turns are entered manually or played from an example script; the tool is a *copilot* and does **not** automatically speak as the SDR. The RAG sources describe fictional FlowDesk CRM product facts. The product's seat eligibility, discounts and free trial policies are not documented, so the copilot must not promise those. An Excel/CSV import is not equivalent to continuous Salesforce synchronization.
+
+The reported latency covers retrieval + generation; it **does not include audio transcription**. Two observed local demo turns took approximately 2.77 and 2.85 seconds, but these are not statistically representative benchmarks and the model and hardware must be documented when sharing performance results. Use `python scripts/benchmark_ollama.py --models qwen3:4b qwen3:1.7b` to compare models on your own machine. Guardrails are heuristic and do not guarantee factual accuracy. All production-facing responses need human review.

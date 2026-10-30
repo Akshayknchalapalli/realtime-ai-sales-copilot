@@ -187,7 +187,7 @@ async def generate(turns: list[Turn], passages: list[tuple[str,str]]) -> Recomme
         context="\n".join(f"{turn.speaker}: {turn.text}" for turn in turns[-12:])
         sources="\n\n".join(f"SOURCE {sid}: {chunk}" for sid,chunk in passages)
         current=next((t.text for t in reversed(turns) if t.speaker=="customer"), "")
-        briefing=await understand(current,context)
+        briefing=await understand(current,context) if os.getenv("OLLAMA_TWO_STAGE","0")=="1" else None
         data=await ollama_backend.recommendation(context,sources,Recommendation.model_json_schema(),latest_customer=current,understanding=briefing)
         rec=Recommendation.model_validate(data)
         rec.source_ids=[sid for sid in rec.source_ids if sid in source_ids]

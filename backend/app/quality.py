@@ -73,18 +73,18 @@ def unsupported_claim_or_echo(suggestion: str, latest: str) -> bool:
         return True
     # Reject near-verbatim questions about the same feature, even with changed subject.
     if (suggestion.strip().endswith("?") and
-        (re.search(r"\\b(?:can|does|how)\\s+(?:flowdesk|your crm)\\b", suggestion, re.I))
+        (re.search(r"\b(?:can|does|how)\s+(?:flowdesk|your crm)\b", suggestion, re.I))
         and len(set(normalized(suggestion).split()) & set(normalized(latest).split())) >= 5):
         return True
     # FlowDesk documentation explicitly denies native Salesforce synchronization.
-    if re.search(r"\\bsalesforce\\b", suggestion, re.I):
-        if re.search(r"\\b(?:can|does|will|offers?|provides?|supports?)\\b.{0,90}\\b(?:sync\\w*|synchroniz\\w*|integrat\\w*|connect\\w*)\\b.{0,90}\\bsalesforce\\b", suggestion, re.I):
+    if re.search(r"\bsalesforce\b", suggestion, re.I):
+        if re.search(r"\b(?:can|does|will|offers?|provides?|supports?)\b.{0,90}\b(?:sync\w*|synchroniz\w*|integrat\w*|connect\w*)\b.{0,90}\bsalesforce\b", suggestion, re.I):
             return True
-        if re.search(r"\\b(?:sync\\w*|synchroniz\\w*|integrat\\w*)\\b.{0,75}\\b(?:with|to)\\s+salesforce\\b", suggestion, re.I) and not re.search(r"\\b(?:not|don't|doesn't|cannot|can't|unsupported|no native)\\b", suggestion, re.I):
+        if re.search(r"\b(?:sync\w*|synchroniz\w*|integrat\w*)\b.{0,75}\b(?:with|to)\s+salesforce\b", suggestion, re.I) and not re.search(r"\b(?:not|don't|doesn't|cannot|can't|unsupported|no native)\b", suggestion, re.I):
             return True
     # Predictive churn analytics are not documented in this fictional CRM knowledge base.
-    if re.search(r"\\b(?:cancel\\w*|churn|retention risk)\\b", latest, re.I):
-        if re.search(r"\\b(?:we|flowdesk|our crm)\\s+(?:can|will|do|does|offer\\w*)\\b.{0,100}\\b(?:analyz\\w*|predict\\w*|identify risk|forecast\\w*)\\b", suggestion, re.I):
+    if re.search(r"\b(?:cancel\w*|churn|retention risk)\b", latest, re.I):
+        if re.search(r"\b(?:we|flowdesk|our crm)\s+(?:can|will|do|does|offer\w*)\b.{0,100}\b(?:analyz\w*|predict\w*|identify risk|forecast\w*)\b", suggestion, re.I):
             return True
     return False
 

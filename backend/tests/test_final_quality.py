@@ -30,3 +30,8 @@ def test_synchronization_not_confused_with_csv_import():
 def test_sources_restricted():
     r,changed=guard({**base("feature_inquiry","We offer reminders for lead follow-ups."),"source_ids":["faq-002","made-up"]},"Can you remind us about follow-ups?",["faq-002"])
     assert not changed and r["source_ids"]==["faq-002"]
+
+def test_csv_sync_word_order_reversed():
+    r, changed = guard(base("integration_question","Synchronization with Salesforce is supported through CSV import."),"Do you support Salesforce integration?",[])
+    assert changed
+    assert "synchronization with Salesforce is supported" not in r["suggestion"]

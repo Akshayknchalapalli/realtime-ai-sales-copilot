@@ -55,20 +55,31 @@ def fallback(intent: str, latest: str, source_ids: list[str]) -> dict:
         return dict(intent=intent,suggestion="I understand the pricing concern. What are missed follow-ups costing your team, and what budget are you considering?",reason="Customer raised a cost concern; plan eligibility is not documented.",next_action="Clarify needs before recommending a specific plan.",source_ids=[sid for sid in source_ids if sid.startswith(("pricing","objections"))])
     return dict(intent="clarification",suggestion="Could you tell me a little more about the challenge you want to solve?",reason="More customer context is needed.",next_action="Ask a discovery question.",source_ids=[])
 
-def guard(recommendation: dict, latest: str, allowed_source_ids: list[str]) -> tuple[dict,bool]:
-    """Return a vetted structured recommendation and whether it was replaced."""
-    rec=dict(recommendation)
-    rec["source_ids"]=[x for x in rec.get("source_ids",[]) if x in allowed_source_ids]
-    intent=latest_intent(latest)
-    # A clear latest intent wins over stale conversation history.
-    if intent and rec.get("intent") != intent:
-        return fallback(intent,latest,allowed_source_ids),True
-    combined=" ".join(str(rec.get(x,"")) for x in ("suggestion","reason","next_action"))
-    if OFFERS.search(combined) or SALESFORCE_AFFIRMATION.search(combined) or CSV_SYNC.search(combined) or (intent == "integration_question" and UNVERIFIED_INTEGRATION_WORKAROUND.search(combined)):
-        return fallback(intent or rec.get("intent","clarification"),latest,allowed_source_ids),True
-    if PLAN_FIT.search(combined):
-        return fallback(intent or "pricing_objection",latest,allowed_source_ids),True
-    suggestion=str(rec.get("suggestion","")).strip()
-    if len(suggestion.split())>45 or len(suggestion.split())<4 or INTERNAL_LANGUAGE.search(suggestion):
-        return fallback(intent or rec.get("intent","clarification"),latest,allowed_source_ids),True
-    return rec,False
+def safe_abstention(latest: str) -> dict:
+    """Neutral fallback only when a known risky claim or malformed suggestion is found."""
+    return {
+        "intent": "clarification",
+        "suggestion": "I want to make sure I give you accurate information. Could you clarify your requirements while I check the relevant product details?",
+        "reason": "The generated response failed a safety or speakability check; no unverified capability was promised.",
+        "next_action": "Check product documentation and confirm the capability before making a commitment.",
+        "source_ids": [],
+    }
+
+
+def guard(recommendation: dict, latest: str, allowed_source_ids: list[str]) -> tuple[dict, bool]:
+    """Preserve dynamic model responses unless a specific safety or formatting check fails.
+
+    This is a narrow risk filter, not a replacement intent classifier or fact checker.
+    """
+    rec = dict(recommendation)
+    rec["source_ids"] = [sid for sid in rec.get("source_ids", []) if sid in allowed_source_ids]
+    combined = " ".join(str(rec.get(k, "")) for k in ("suggestion", "reason", "next_action"))
+    if (OFFERS.search(combined) or SALESFORCE_AFFIRMATION.search(combined)
+            or CSV_SYNC.search(combined)
+            or UNVERIFIED_INTEGRATION_WORKAROUND.search(combined)
+            or PLAN_FIT.search(combined)):
+        return safe_abstention(latest), True
+    suggestion = str(rec.get("suggestion", "")).strip()
+    if not 4 <= len(suggestion.split()) <= 45 or INTERNAL_LANGUAGE.search(suggestion):
+        return safe_abstention(latest), True
+    return rec, False

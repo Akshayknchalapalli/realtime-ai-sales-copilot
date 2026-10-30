@@ -212,3 +212,30 @@ The additional model call **adds latency**, and structured briefing does not
 guarantee speaker accuracy. Re-test in the app before presenting.
 The unit tests in `test_customer_briefing.py` mock the model only to verify
 the orchestration, not to claim real Qwen quality.
+
+## Submission latency and relevance update
+
+The Ollama live path now defaults to **one** Qwen3 generation call per
+customer turn (`OLLAMA_TWO_STAGE=0`, default), eliminating the extra
+customer-understanding LLM call that previously added latency. Set
+`OLLAMA_TWO_STAGE=1` only to compare with the two-stage experiment.
+
+The generation prompt now prioritizes the latest customer turn after short
+conversation context, especially when a customer switches from pricing to a
+demo request or asks about unsupported AI scoring and Salesforce integration.
+This is still raw **unverified** Qwen output without recovery substitutions.
+The effect on answer accuracy and latency must be measured on your Mac.
+
+Suggested backend settings:
+```dotenv
+AI_PROVIDER=ollama
+OLLAMA_CHAT_MODEL=qwen3:4b
+OLLAMA_TWO_STAGE=0
+USE_FAISS=1
+OLLAMA_CONTEXT_SIZE=4096
+OLLAMA_MAX_OUTPUT_TOKENS=200
+```
+Restart FastAPI and run `python -m pytest -q` then
+`python -m scripts.evaluate_scenarios`. Demo-test the last intent in a
+multi-turn conversation. Do not claim these settings guarantee a latency
+threshold.

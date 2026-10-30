@@ -22,6 +22,10 @@ SALESFORCE_AFFIRMATION = re.compile(
     r"\b(?:we|flowdesk|our (?:product|crm))\s+(?:do\s+)?(?:support|supports|integrate|integrates|connect|connects)\b"
     r".{0,80}\bsalesforce\b|\bsalesforce\b.{0,60}\b(?:is supported|is integrated|works natively)\b", re.I
 )
+UNVERIFIED_INTEGRATION_WORKAROUND = re.compile(
+    r"\b(?:third.party|external|zapier|make\.com)\b.{0,110}\b(?:sync\w*|synchroniz\w*|integrat\w*|connect\w*)\b|"
+    r"\b(?:sync\w*|synchroniz\w*|integrat\w*)\b.{0,110}\b(?:third.party|external|zapier|make\.com)\b", re.I
+)
 CSV_SYNC = re.compile(
     r"\b(?:csv|excel)\b.{0,90}\b(?:sync\w*|synchroniz\w*|real.time integration)\b|"
     r"\b(?:sync\w*|synchroniz\w*)\b.{0,90}\b(?:csv|excel)\b", re.I
@@ -31,12 +35,13 @@ def latest_intent(text: str) -> str | None:
     q=text.lower()
     if re.search(r"\b(?:schedule|book|arrange)\b.{0,50}\b(?:demo|demonstration)\b|\b(?:demo|demonstration)\b",q):
         return "buying_signal"
-    if re.search(r"\b(?:already (?:use|using)|current crm|another crm|why (?:should|would) we switch)\b",q):
-        return "competitor_objection"
+    # Explicit pricing concerns outweigh generic comparisons or switching language.
+    if re.search(r"\b(?:expensive|pricing|price|cost|budget|afford\w*|cheaper)\b",q):
+        return "pricing_objection"
     if re.search(r"\b(?:salesforce|integrat\w*|connect to)\b",q):
         return "integration_question"
-    if re.search(r"\b(?:expensive|pricing|price|cost|budget)\b",q):
-        return "pricing_objection"
+    if re.search(r"\b(?:already (?:use|using)|current crm|another crm|why (?:should|would) we switch)\b",q):
+        return "competitor_objection"
     return None
 
 def fallback(intent: str, latest: str, source_ids: list[str]) -> dict:
@@ -59,7 +64,7 @@ def guard(recommendation: dict, latest: str, allowed_source_ids: list[str]) -> t
     if intent and rec.get("intent") != intent:
         return fallback(intent,latest,allowed_source_ids),True
     combined=" ".join(str(rec.get(x,"")) for x in ("suggestion","reason","next_action"))
-    if OFFERS.search(combined) or SALESFORCE_AFFIRMATION.search(combined) or CSV_SYNC.search(combined):
+    if OFFERS.search(combined) or SALESFORCE_AFFIRMATION.search(combined) or CSV_SYNC.search(combined) or (intent == "integration_question" and UNVERIFIED_INTEGRATION_WORKAROUND.search(combined)):
         return fallback(intent or rec.get("intent","clarification"),latest,allowed_source_ids),True
     if PLAN_FIT.search(combined):
         return fallback(intent or "pricing_objection",latest,allowed_source_ids),True

@@ -17,11 +17,17 @@ def embeddings(texts: list[str]) -> list[list[float]]:
 
 async def recommendation(context: str, sources: str, schema: dict, latest_customer: str = "") -> dict:
     instructions = (
-        "You assist a sales representative selling fictional FlowDesk CRM. "
+        "You are a PRIVATE COPILOT for an SDR (sales representative) selling fictional FlowDesk CRM. "
         "Respond to the LATEST CUSTOMER QUESTION, not other topics in the history. "
         "Output JSON matching the schema: intent, suggestion, reason, next_action, source_ids. "
         "suggestion must be natural words the representative can say directly (max 45 words). "
-        "First answer the question; then ask at most one relevant follow-up. "
+        "The CUSTOMER is the buyer. The SDR is selling the CRM. suggestion is what the SDR says TO THE CUSTOMER, not a question the customer asks the SDR. "
+        "For a customer who describes their situation, acknowledge the specific situation and ask one relevant discovery question. "
+        "Do not echo the customer or reverse speaker roles. "
+        "Do not start suggestion with Can you help us, Can your CRM, or Does FlowDesk, unless quoting is explicitly requested. "
+        "next_action must tell the SDR one concrete action, starting with Ask, Confirm, Explain, Compare, Clarify, or Schedule; never output yes, no, clarification or a bare label. "
+        "reason explains why the suggestion fits the latest customer turn; never fabricate customer needs. "
+        "First address the customer situation; then ask at most one relevant follow-up. "
         "Only assert product capabilities explicitly supported by PRODUCT DOCUMENTATION. "
         "If a capability is absent or explicitly unsupported, say it is not confirmed or not supported. "
         "Do not infer CRM features, integration availability, pricing benefits, or AI predictions. "

@@ -143,6 +143,25 @@ def enforce_claims(rec: Recommendation, passages: list[tuple[str,str]], turns: l
 
 
 
+def validate_latest_intent(rec: Recommendation, latest: str, passages: list[tuple[str,str]]) -> Recommendation:
+    """Guard against old-topic answers when a clear new customer intent appears."""
+    q=latest.lower()
+    if "demo" in q or "demonstration" in q or "schedule" in q and "next week" in q:
+        if rec.intent != "buying_signal" or "salesforce" in rec.suggestion.lower():
+            return Recommendation(intent="buying_signal",
+                suggestion="Certainly. What day next week suits you, and which workflow should we focus on in the demonstration?",
+                reason="The latest customer turn requested a demonstration.",
+                next_action="Confirm demo timing and focus.",
+                source_ids=[])
+    if "already using another crm" in q or "why should we switch" in q and "crm" in q:
+        if rec.intent not in ("competitor_objection","pricing_objection") or "salesforce" in rec.suggestion.lower():
+            return Recommendation(intent="competitor_objection",
+                suggestion="What is working well with your current CRM, and what would you most like to improve?",
+                reason="The latest customer turn concerns an existing CRM.",
+                next_action="Discover switching criteria.",
+                source_ids=[])
+    return rec
+
 async def generate(turns: list[Turn], passages: list[tuple[str,str]]) -> Recommendation:
     latest=turns[-1].text.lower()
     source_ids=[sid for sid,_ in passages]
@@ -184,11 +203,13 @@ async def recommend(session:Session,ws:WebSocket,session_id:str,version:int):
     start=time.perf_counter()
     try:
         turns=list(session.turns)
-        passages=await asyncio.to_thread(knowledge.search,retrieval_query(turns),k=5)
+        passages=await asyncio.to_thread(knowledge.search,retrieval_query(turns),k=3)
         retrieval_ms=round((time.perf_counter()-start)*1000)
         result=await generate(turns,passages)
         generation_ms=round((time.perf_counter()-start)*1000)-retrieval_ms
         result=enforce_claims(result,passages,turns)
+        latest_customer=next((t.text for t in reversed(turns) if t.speaker == 'customer'), '')
+        result=validate_latest_intent(result,latest_customer,passages)
         if session.closed or version != session.version:
             return
         async with session.send_lock:

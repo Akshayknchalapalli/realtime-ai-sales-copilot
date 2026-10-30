@@ -15,6 +15,7 @@ load_dotenv()
 logger = logging.getLogger(__name__)
 from . import ollama_backend
 from .quality import guard
+from .pipeline import finalize
 from .evidence import evidence_issues
 PROVIDER = os.getenv("AI_PROVIDER", "ollama").lower()
 ROOT = Path(__file__).resolve().parents[2]
@@ -210,14 +211,11 @@ async def recommend(session:Session,ws:WebSocket,session_id:str,version:int):
         result=await generate(turns,passages)
         generation_ms=round((time.perf_counter()-start)*1000)-retrieval_ms
         latest_customer=next((t.text for t in reversed(turns) if t.speaker == 'customer'), '')
-        checked, corrected = guard(result.model_dump(),latest_customer,[sid for sid,_ in passages])
-        evidence_flags=evidence_issues(latest_customer,checked["suggestion"],passages)
-        if evidence_flags:
-            from .quality import safe_abstention
-            checked=safe_abstention(latest_customer)
-            corrected=True
+        checked,response_origin,evidence_flags=finalize(result.model_dump(),latest_customer,passages)
+        if PROVIDER not in ('ollama','openai') and response_origin=='ai_generated':
+            response_origin='offline_demo'
+        corrected=response_origin=='verified_recovery'
         result=Recommendation.model_validate(checked)
-        response_origin='safety_fallback' if corrected else ('ai_generated' if PROVIDER in ('ollama','openai') else 'offline_demo')
         if session.closed or version != session.version:
             return
         async with session.send_lock:

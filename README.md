@@ -116,3 +116,25 @@ python -m scripts.evaluate_scenarios
 This runs eight unseen customer questions through the **actual** embedding + FAISS + Qwen + validation pipeline. It prints predicted versus expected intent, response provenance, timings, source IDs and generated text. Intent agreement is only a diagnostic; manually review each answer for speakability and factual grounding. This is not a production-grade benchmark or a claim that RAG alone prevents hallucinations.
 
 The latest Qwen system prompt defines intent categories, emphasizes the latest customer turn, distinguishes reminders from automated lead scoring, and requests direct spoken responses rather than internal SDR instructions. Normal model output is preserved unless a targeted guardrail is triggered.
+
+## Evidence-aware recommendation architecture (interview MVP)
+
+The model receives the latest customer question as a **separate prompt field** from
+prior conversation history. After Qwen generates its structured recommendation,
+the server validates recognizable high-risk claims against documented product
+capabilities in `app/evidence.py`. The evidence gate is shared by the live
+WebSocket and the evaluation script; rejected outputs become neutral,
+clearly labeled `safety_fallback` responses. Supported claims such as lead
+follow-up reminders can pass unchanged.
+
+This architecture intentionally separates generative language from factual
+policy enforcement. The current evidence validator is **not** a general-purpose
+entailment model: it has narrowly scoped capability families based on known
+FlowDesk documentation, and may miss novel unsupported claims. Production work
+would require document ingestion with structured facts, source-level entailment
+checking, permission-aware tenant retrieval, independent evaluation and
+monitoring. No microphone streaming or production deployment is included.
+
+To verify: `cd backend && python -m pytest -q && python -m scripts.evaluate_scenarios`.
+Check intent agreement, evidence flags, response origin and *manual* answer quality.
+Do not treat a high intent agreement or fewer fallbacks as proof of grounding.

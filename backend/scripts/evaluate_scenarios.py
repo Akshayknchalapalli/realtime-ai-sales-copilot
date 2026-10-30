@@ -8,8 +8,7 @@ import json
 import time
 import re
 from app.main import Turn, knowledge, retrieval_query, generate, Recommendation
-from app.quality import guard, safe_abstention
-from app.evidence import evidence_issues
+from app.pipeline import finalize
 
 CASES = [
     ("lead_priority","Our leads come from several websites and we cannot prioritize them. What should we do?","feature_inquiry"),
@@ -29,18 +28,14 @@ async def main():
         try:
             sources=await asyncio.to_thread(knowledge.search,retrieval_query(turns),k=3)
             rec=await generate(turns,sources)
-            safe, corrected=guard(rec.model_dump(),query,[sid for sid,_ in sources])
-            evidence_flags=evidence_issues(query,safe["suggestion"],sources)
-            if evidence_flags:
-                safe=safe_abstention(query)
-                corrected=True
+            safe, origin, evidence_flags=finalize(rec.model_dump(),query,sources)
             review_flags=[]
             if re.search(r"\\b(?:competitive pricing|flexible plans|predict churn|predict cancellations|synchronize leads with Salesforce)\\b",rec.suggestion,re.I):
                 review_flags.append("potentially_unsupported_claim")
             if re.sub(r"[^a-z0-9]+"," ",rec.suggestion.lower()).strip()==re.sub(r"[^a-z0-9]+"," ",query.lower()).strip():
                 review_flags.append("customer_question_echo")
             results.append({"scenario":name,"expected_intent":expected,"predicted_intent":rec.intent,
-              "intent_match":rec.intent==expected,"origin":"safety_fallback" if corrected else "ai_generated",
+              "intent_match":rec.intent==expected,"origin":origin,
               "elapsed_ms":round((time.perf_counter()-started)*1000),
               "review_flags":review_flags,"evidence_flags":evidence_flags,"raw_suggestion":rec.suggestion,"raw_reason":rec.reason,"raw_next_action":rec.next_action,
               "suggestion":safe["suggestion"],"sources":safe["source_ids"]})
@@ -50,6 +45,6 @@ async def main():
         print(json.dumps(row,ensure_ascii=False))
     valid=[r for r in results if "intent_match" in r]
     if valid:
-        print(f"Intent agreement: {sum(r['intent_match'] for r in valid)}/{len(valid)}; fallbacks: {sum(r['origin']=='safety_fallback' for r in valid)}/{len(valid)}. Compare raw_suggestion with suggestion to diagnose false positives.")
+        print(f"Intent agreement: {sum(r['intent_match'] for r in valid)}/{len(valid)}; fallbacks: {sum(r['origin']=='verified_recovery' for r in valid)}/{len(valid)}. Compare raw_suggestion with suggestion to diagnose false positives.")
 if __name__=="__main__":
     asyncio.run(main())

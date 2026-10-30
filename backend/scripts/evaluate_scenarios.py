@@ -31,6 +31,7 @@ async def main():
             results.append({"scenario":name,"expected_intent":expected,"predicted_intent":rec.intent,
               "intent_match":rec.intent==expected,"origin":"safety_fallback" if corrected else "ai_generated",
               "elapsed_ms":round((time.perf_counter()-started)*1000),
+              "raw_suggestion":rec.suggestion,"raw_reason":rec.reason,"raw_next_action":rec.next_action,
               "suggestion":safe["suggestion"],"sources":safe["source_ids"]})
         except Exception as exc:
             results.append({"scenario":name,"error":str(exc)})
@@ -38,6 +39,6 @@ async def main():
         print(json.dumps(row,ensure_ascii=False))
     valid=[r for r in results if "intent_match" in r]
     if valid:
-        print(f"Intent agreement: {sum(r['intent_match'] for r in valid)}/{len(valid)}; review factual grounding and speakability manually.")
+        print(f"Intent agreement: {sum(r['intent_match'] for r in valid)}/{len(valid)}; fallbacks: {sum(r['origin']=='safety_fallback' for r in valid)}/{len(valid)}. Compare raw_suggestion with suggestion to diagnose false positives.")
 if __name__=="__main__":
     asyncio.run(main())

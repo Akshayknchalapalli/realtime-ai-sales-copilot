@@ -38,3 +38,19 @@ def test_15_person_team_plan_not_assumed():
                        reason="Plan",next_action="Buy",source_ids=["pricing-002"])
     result=enforce_claims(rec,[("pricing-002","Starter for a small team")],turns)
     assert "starter plan is the right fit" not in result.suggestion.lower()
+
+def test_buying_signal_supersedes_salesforce():
+    from app.main import validate_latest_intent
+    old=Recommendation(intent="clarification",suggestion="We don't integrate with Salesforce.",
+        reason="old context",next_action="Sync",source_ids=[])
+    result=validate_latest_intent(old,"Can we schedule a demonstration next week?",[])
+    assert result.intent == "buying_signal"
+    assert "salesforce" not in result.suggestion.lower()
+
+def test_competitor_supersedes_integration():
+    from app.main import validate_latest_intent
+    old=Recommendation(intent="clarification",suggestion="Check Salesforce integration.",
+        reason="old context",next_action="Sync",source_ids=[])
+    result=validate_latest_intent(old,"We're already using another CRM. Why should we switch to FlowDesk?",[])
+    assert result.intent == "competitor_objection"
+    assert "salesforce" not in result.suggestion.lower()

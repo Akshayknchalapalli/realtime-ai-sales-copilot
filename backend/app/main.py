@@ -49,7 +49,7 @@ class Knowledge:
         for p in sorted((ROOT / "knowledge").glob("*.md")):
             for i, section in enumerate(p.read_text(encoding="utf-8").split("\n## ")):
                 section = section if i == 0 else "## " + section
-                if section.strip():
+                if section.strip() and i > 0 and len(section.split()) >= 8:
                     self.sections.append((f"{p.stem}-{i+1:03d}", section.strip()))
         self.index = None
         self.embedding_client = None
@@ -74,6 +74,21 @@ class Knowledge:
             except Exception:
                 logger.exception("FAISS initialization failed; falling back to keyword search")
 
+    def include_critical_evidence(self, query: str, found: list[tuple[str,str]], k: int) -> list[tuple[str,str]]:
+        """Ensure relevant documented limitations reach the LLM, without rewriting its answer."""
+        q=query.lower()
+        required=[]
+        if "salesforce" in q:
+            required=[entry for entry in self.sections if entry[0].startswith("integrations-") and "not currently supported" in entry[1].lower()]
+        elif any(word in q for word in ("churn","cancel","payroll","income tax","lead scoring","score and prioritize","automatically score")):
+            required=[entry for entry in self.sections if entry[0].startswith("product_overview-") and "features" in entry[1].lower()]
+        if not required:
+            return found[:k]
+        # Reserve one slot for authoritative scope/limitation evidence.
+        out=required[:1]
+        out.extend(entry for entry in found if entry[0] not in {x[0] for x in out})
+        return out[:k]
+
     def search(self, query: str, k: int = 3) -> list[tuple[str,str]]:
         if self.index is not None and self.embedding_client:
             try:
@@ -88,11 +103,11 @@ class Knowledge:
                 vector=np.asarray(vectors,dtype="float32")
                 faiss.normalize_L2(vector)
                 _,indices=self.index.search(vector,min(k,len(self.sections)))
-                return [self.sections[i] for i in indices[0] if i>=0]
+                return self.include_critical_evidence(query,[self.sections[i] for i in indices[0] if i>=0],k)
             except Exception:
                 logger.exception("Vector retrieval failed; falling back to keyword search")
         terms=set(re.findall(r"[a-z0-9]+",query.lower()))-{"and","the","this","that","your","with","have"}
-        return sorted(self.sections,key=lambda entry:sum(term in entry[1].lower() for term in terms),reverse=True)[:k]
+        return self.include_critical_evidence(query,sorted(self.sections,key=lambda entry:sum(term in entry[1].lower() for term in terms),reverse=True)[:k],k)
 
 knowledge=Knowledge()
 sessions: dict[str,Session]={}

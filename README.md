@@ -198,3 +198,17 @@ The app defaults to `OLLAMA_CHAT_MODEL=qwen3:4b` if unset.
 ## Retrieval-quality update
 
 The FAISS index now omits Markdown title-only sections. For Salesforce questions, the retrieval stage reserves space for the documented native-integration limitation rather than relying on the nearest semantic chunks alone. For questions about unfamiliar AI, lead scoring, or payroll capabilities, it additionally supplies the product feature scope. This changes **retrieved evidence**, not the Qwen-generated recommendation: the live app still shows unverified raw model responses with no fallback. Verify new behavior by restarting FastAPI (knowledge is indexed at startup) and running the evaluation and manual tests. This is a targeted recall improvement and not proof of factual grounding.
+
+## Two-stage SDR generation (final interview refinement)
+
+Ollama now performs **two real model inferences per customer turn**. The first
+extracts a structured customer briefing: situation, need and discovery focus.
+The second uses that briefing, the explicit latest customer message, prior
+conversation and retrieved documentation to generate SDR-to-customer wording.
+
+No intent-specific canned answer, validator replacement or fallback is used in
+the live Ollama response path. The `Raw AI output · Unverified` label remains.
+The additional model call **adds latency**, and structured briefing does not
+guarantee speaker accuracy. Re-test in the app before presenting.
+The unit tests in `test_customer_briefing.py` mock the model only to verify
+the orchestration, not to claim real Qwen quality.

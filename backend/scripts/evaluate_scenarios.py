@@ -8,7 +8,6 @@ import json
 import time
 import re
 from app.main import Turn, knowledge, retrieval_query, generate, Recommendation
-from app.pipeline import finalize
 
 CASES = [
     ("lead_priority","Our leads come from several websites and we cannot prioritize them. What should we do?","feature_inquiry"),
@@ -28,7 +27,8 @@ async def main():
         try:
             sources=await asyncio.to_thread(knowledge.search,retrieval_query(turns),k=3)
             rec=await generate(turns,sources)
-            safe, origin, evidence_flags=finalize(rec.model_dump(),query,sources)
+            origin='ai_generated_unverified'
+            evidence_flags=[]
             review_flags=[]
             if re.search(r"\\b(?:competitive pricing|flexible plans|predict churn|predict cancellations|synchronize leads with Salesforce)\\b",rec.suggestion,re.I):
                 review_flags.append("potentially_unsupported_claim")
@@ -38,13 +38,13 @@ async def main():
               "intent_match":rec.intent==expected,"origin":origin,
               "elapsed_ms":round((time.perf_counter()-started)*1000),
               "review_flags":review_flags,"evidence_flags":evidence_flags,"raw_suggestion":rec.suggestion,"raw_reason":rec.reason,"raw_next_action":rec.next_action,
-              "suggestion":safe["suggestion"],"sources":safe["source_ids"]})
+              "suggestion":rec.suggestion,"sources":rec.source_ids})
         except Exception as exc:
             results.append({"scenario":name,"error":str(exc)})
     for row in results:
         print(json.dumps(row,ensure_ascii=False))
     valid=[r for r in results if "intent_match" in r]
     if valid:
-        print(f"Intent agreement: {sum(r['intent_match'] for r in valid)}/{len(valid)}; fallbacks: {sum(r['origin']=='verified_recovery' for r in valid)}/{len(valid)}. Compare raw_suggestion with suggestion to diagnose false positives.")
+        print(f"Intent agreement: {sum(r['intent_match'] for r in valid)}/{len(valid)}; raw model outputs displayed without replacement. Review factual accuracy manually.")
 if __name__=="__main__":
     asyncio.run(main())

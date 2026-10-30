@@ -15,7 +15,7 @@ def embeddings(texts: list[str]) -> list[list[float]]:
             raise ValueError("Ollama returned an unexpected number of embeddings")
         return vectors
 
-async def recommendation(context: str, sources: str, schema: dict) -> dict:
+async def recommendation(context: str, sources: str, schema: dict, latest_customer: str = "") -> dict:
     instructions = (
         "You are an AI sales copilot for fictional FlowDesk CRM. "
         "Write a short response that a human sales representative can SAY DIRECTLY to the customer. "
@@ -66,7 +66,7 @@ async def recommendation(context: str, sources: str, schema: dict) -> dict:
         "options": {"temperature": 0.1, "num_predict": int(os.getenv("OLLAMA_MAX_OUTPUT_TOKENS", "150")), "num_ctx": int(os.getenv("OLLAMA_CONTEXT_SIZE", "2048"))},
         "messages": [
             {"role": "system", "content": instructions},
-            {"role": "user", "content": f"CONVERSATION (latest CUSTOMER turn takes precedence):\n{context}\n\nDOCUMENTED PRODUCT EVIDENCE:\n{sources}\n\nReturn the JSON recommendation."},
+            {"role": "user", "content": f"LATEST CUSTOMER QUESTION (answer this, not earlier questions):\n{latest_customer}\n\nPRIOR CONVERSATION (background only):\n{context}\n\nPRODUCT DOCUMENTATION:\n{sources}\n\nReturn the JSON recommendation."},
         ],
     }
     async with httpx.AsyncClient(timeout=180) as client:

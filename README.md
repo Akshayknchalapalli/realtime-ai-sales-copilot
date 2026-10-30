@@ -104,3 +104,15 @@ For interview evaluation, test several unseen customer questions and record
 the answer, its response origin, relevant evidence, and measured latency.
 If an unsafe output triggers a fallback, explain why; do not present it as
 proof that Qwen authored that particular sentence.
+
+## Labeled model-quality evaluation
+
+After starting Ollama and installing dependencies, run from `backend/`:
+
+```bash
+python -m scripts.evaluate_scenarios
+```
+
+This runs eight unseen customer questions through the **actual** embedding + FAISS + Qwen + validation pipeline. It prints predicted versus expected intent, response provenance, timings, source IDs and generated text. Intent agreement is only a diagnostic; manually review each answer for speakability and factual grounding. This is not a production-grade benchmark or a claim that RAG alone prevents hallucinations.
+
+The latest Qwen system prompt defines intent categories, emphasizes the latest customer turn, distinguishes reminders from automated lead scoring, and requests direct spoken responses rather than internal SDR instructions. Normal model output is preserved unless a targeted guardrail is triggered.

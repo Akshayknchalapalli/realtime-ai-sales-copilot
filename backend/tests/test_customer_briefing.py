@@ -24,6 +24,7 @@ def test_latest_customer_briefing_reaches_generation(monkeypatch):
                 "next_action":"Ask which manual step is taking the most time.",
                 "source_ids":["faq-002"]}
     monkeypatch.setattr(main,"PROVIDER","ollama")
+    monkeypatch.setenv("OLLAMA_TWO_STAGE","1")
     monkeypatch.setattr(main,"understand",fake_understand)
     monkeypatch.setattr(main.ollama_backend,"recommendation",fake_generate)
     turns=[main.Turn(event_id="1",speaker="sdr",text="How do you manage leads?"),

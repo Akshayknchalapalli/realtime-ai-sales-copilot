@@ -8,7 +8,8 @@ import json
 import time
 import re
 from app.main import Turn, knowledge, retrieval_query, generate, Recommendation
-from app.quality import guard
+from app.quality import guard, safe_abstention
+from app.evidence import evidence_issues
 
 CASES = [
     ("lead_priority","Our leads come from several websites and we cannot prioritize them. What should we do?","feature_inquiry"),
@@ -29,6 +30,10 @@ async def main():
             sources=await asyncio.to_thread(knowledge.search,retrieval_query(turns),k=3)
             rec=await generate(turns,sources)
             safe, corrected=guard(rec.model_dump(),query,[sid for sid,_ in sources])
+            evidence_flags=evidence_issues(query,safe["suggestion"],sources)
+            if evidence_flags:
+                safe=safe_abstention(query)
+                corrected=True
             review_flags=[]
             if re.search(r"\\b(?:competitive pricing|flexible plans|predict churn|predict cancellations|synchronize leads with Salesforce)\\b",rec.suggestion,re.I):
                 review_flags.append("potentially_unsupported_claim")
@@ -37,7 +42,7 @@ async def main():
             results.append({"scenario":name,"expected_intent":expected,"predicted_intent":rec.intent,
               "intent_match":rec.intent==expected,"origin":"safety_fallback" if corrected else "ai_generated",
               "elapsed_ms":round((time.perf_counter()-started)*1000),
-              "review_flags":review_flags,"raw_suggestion":rec.suggestion,"raw_reason":rec.reason,"raw_next_action":rec.next_action,
+              "review_flags":review_flags,"evidence_flags":evidence_flags,"raw_suggestion":rec.suggestion,"raw_reason":rec.reason,"raw_next_action":rec.next_action,
               "suggestion":safe["suggestion"],"sources":safe["source_ids"]})
         except Exception as exc:
             results.append({"scenario":name,"error":str(exc)})

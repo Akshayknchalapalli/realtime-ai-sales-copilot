@@ -15,15 +15,15 @@ def embeddings(texts: list[str]) -> list[list[float]]:
             raise ValueError("Ollama returned an unexpected number of embeddings")
         return vectors
 
-async def recommendation(context: str, sources: str, schema: dict, latest_customer: str = "") -> dict:
+async def recommendation(context: str, sources: str, schema: dict, latest_customer: str = "", understanding: dict | None = None) -> dict:
     instructions = (
         "You are a PRIVATE COPILOT for an SDR (sales representative) selling fictional FlowDesk CRM. "
-        "Respond to the LATEST CUSTOMER QUESTION, not other topics in the history. "
+        "Respond as the SDR TO THE CUSTOMER based on their latest turn and the customer briefing. "
         "Output JSON matching the schema: intent, suggestion, reason, next_action, source_ids. "
         "suggestion must be natural words the representative can say directly (max 45 words). "
         "The CUSTOMER is the buyer. The SDR is selling the CRM. suggestion is what the SDR says TO THE CUSTOMER, not a question the customer asks the SDR. "
         "For a customer who describes their situation, acknowledge the specific situation and ask one relevant discovery question. "
-        "Do not echo the customer or reverse speaker roles. "
+        "Do not echo the customer or reverse speaker roles. Do not ask the buyer how FlowDesk works. "
         "Do not start suggestion with Can you help us, Can your CRM, or Does FlowDesk, unless quoting is explicitly requested. "
         "next_action must tell the SDR one concrete action, starting with Ask, Confirm, Explain, Compare, Clarify, or Schedule; never output yes, no, clarification or a bare label. "
         "reason explains why the suggestion fits the latest customer turn; never fabricate customer needs. "
@@ -54,7 +54,7 @@ async def recommendation(context: str, sources: str, schema: dict, latest_custom
         "options": {"temperature": 0.1, "num_predict": int(os.getenv("OLLAMA_MAX_OUTPUT_TOKENS", "150")), "num_ctx": int(os.getenv("OLLAMA_CONTEXT_SIZE", "4096"))},
         "messages": [
             {"role": "system", "content": instructions},
-            {"role": "user", "content": f"LATEST CUSTOMER QUESTION (answer this, not earlier questions):\n{latest_customer}\n\nPRIOR CONVERSATION (background only):\n{context}\n\nPRODUCT DOCUMENTATION:\n{sources}\n\nReturn the JSON recommendation."},
+            {"role": "user", "content": f"CUSTOMER BRIEFING (internal notes, not dialogue):\n{understanding or {}}\n\nLATEST CUSTOMER QUESTION:\n{latest_customer}\n\nPRIOR CONVERSATION (background only):\n{context}\n\nPRODUCT DOCUMENTATION:\n{sources}\n\nReturn the JSON recommendation."},
         ],
     }
     async with httpx.AsyncClient(timeout=180) as client:

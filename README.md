@@ -174,3 +174,23 @@ customer without review. The older `quality.py`, `evidence.py`,
 tests but **are not called by the live AI or evaluation routes**. The
 `offline-demo` provider is still a separate deterministic mode; set
 `AI_PROVIDER=ollama` to evaluate genuine local Qwen inference.
+
+## Submission quick-start (raw AI output)
+
+Use Ollama locally with `qwen3:4b` and `embeddinggemma`. The
+submission build uses a concise task-focused prompt, retrieves product
+documentation via FAISS, and displays **unverified raw Qwen output** without
+fallback substitution. Do not present model claims as verified product facts.
+
+From `backend/`:
+```bash
+python -m pytest -q
+python -m scripts.evaluate_scenarios
+python -m scripts.compare_models
+```
+The comparison script runs the same eight scenarios with the same retrieval
+index on installed `qwen3:4b` and `qwen3:1.7b` models, prints actual outputs,
+intent agreement and inference timing. To install the optional second model,
+run `ollama pull qwen3:1.7b`. A model that gives the fastest responses is
+not necessarily the most accurate; manually compare capability claims.
+The app defaults to `OLLAMA_CHAT_MODEL=qwen3:4b` if unset.

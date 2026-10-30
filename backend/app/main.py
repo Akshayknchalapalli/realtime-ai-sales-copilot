@@ -169,7 +169,7 @@ async def generate(turns: list[Turn], passages: list[tuple[str,str]]) -> Recomme
     if PROVIDER == "ollama":
         context="\n".join(f"{turn.speaker}: {turn.text}" for turn in turns[-12:])
         sources="\n\n".join(f"SOURCE {sid}: {chunk}" for sid,chunk in passages)
-        data=await ollama_backend.recommendation(context,sources,Recommendation.model_json_schema())
+        data=await ollama_backend.recommendation(context,sources,Recommendation.model_json_schema(),latest_customer=next((t.text for t in reversed(turns) if t.speaker=="customer"), ""))
         rec=Recommendation.model_validate(data)
         rec.source_ids=[sid for sid in rec.source_ids if sid in source_ids]
         return rec

@@ -194,3 +194,7 @@ intent agreement and inference timing. To install the optional second model,
 run `ollama pull qwen3:1.7b`. A model that gives the fastest responses is
 not necessarily the most accurate; manually compare capability claims.
 The app defaults to `OLLAMA_CHAT_MODEL=qwen3:4b` if unset.
+
+## Retrieval-quality update
+
+The FAISS index now omits Markdown title-only sections. For Salesforce questions, the retrieval stage reserves space for the documented native-integration limitation rather than relying on the nearest semantic chunks alone. For questions about unfamiliar AI, lead scoring, or payroll capabilities, it additionally supplies the product feature scope. This changes **retrieved evidence**, not the Qwen-generated recommendation: the live app still shows unverified raw model responses with no fallback. Verify new behavior by restarting FastAPI (knowledge is indexed at startup) and running the evaluation and manual tests. This is a targeted recall improvement and not proof of factual grounding.

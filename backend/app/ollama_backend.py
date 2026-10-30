@@ -46,6 +46,15 @@ async def recommendation(context: str, sources: str, schema: dict) -> dict:
         "merely because other CRMs might provide them. "
         "For a documented reminder feature, explain it briefly before asking how the customer tracks follow-ups. "
         "For an undocumented AI feature, explain that availability needs confirmation instead of offering to perform it. "
+        "Decision procedure: identify the exact customer need; separate documented facts from unknowns; "
+        "answer the customer, not the SDR; ask one specific follow-up. "
+        "Examples of good spoken responses, for style only: "
+        "For reminders: 'Yes, FlowDesk documents follow-up reminders for leads. How does your team currently track overdue follow-ups?' "
+        "For teams in multiple cities: 'FlowDesk documents lead tracking and reminders. How are follow-ups assigned between your teams today? I would need to confirm multi-team permissions.' "
+        "For undocumented churn prediction: 'I cannot confirm AI churn prediction from our product information. What signals would you want it to consider?' "
+        "For pricing: 'I understand the cost concern. How many leads and missed follow-ups are affecting your team, so we can compare documented plan prices?' "
+        "Do not repeat a sample verbatim unless it actually answers the customer's latest question. "
+        "Never describe pricing as competitive or flexible unless the evidence explicitly does. "
         "Return exactly the structured JSON schema."
     )
     payload = {

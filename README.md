@@ -138,3 +138,22 @@ monitoring. No microphone streaming or production deployment is included.
 To verify: `cd backend && python -m pytest -q && python -m scripts.evaluate_scenarios`.
 Check intent agreement, evidence flags, response origin and *manual* answer quality.
 Do not treat a high intent agreement or fewer fallbacks as proof of grounding.
+
+## Interview demo: actionable recovery (October 2026)
+
+Normal suggestions still come from Qwen3. If a suggestion conflicts with verified
+FlowDesk capabilities, repeats the customer question, or misses an explicit
+latest-customer intent, the shared `app/pipeline.py` substitutes a **topic-specific
+document-backed recovery**. This is transparently labeled `verified_recovery` in
+the WebSocket and UI; it is **not** claimed to be an LLM-generated response.
+This replaces the former repeated generic safety sentence. Qwen remains the
+generative engine for normal replies.
+
+Use `python -m pytest -q` and `python -m scripts.evaluate_scenarios` in
+`backend/`. The scenario runner uses the same finalization as the app. Inspect
+`origin` to distinguish actual model output from deterministic recovery.
+
+This is an interview MVP. Recovery covers the fictional product's tested
+capabilities, not arbitrary future features. A production design would replace
+these case-specific recovery messages with a verified product capability store,
+retrieval-backed claim verification and grounded regeneration.

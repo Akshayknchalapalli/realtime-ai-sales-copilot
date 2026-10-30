@@ -45,6 +45,7 @@ def test_other_speaker_turn_is_not_latest_customer(monkeypatch):
         return {"intent":"clarification","suggestion":"How do you currently organize those leads?",
                 "reason":"Need to clarify the workflow.","next_action":"Ask about lead organization.","source_ids":[]}
     monkeypatch.setattr(main,"PROVIDER","ollama")
+    monkeypatch.setenv("OLLAMA_TWO_STAGE","1")
     monkeypatch.setattr(main,"understand",fake_understand)
     monkeypatch.setattr(main.ollama_backend,"recommendation",fake_generate)
     turns=[main.Turn(event_id="1",speaker="customer",text=CUSTOMER),

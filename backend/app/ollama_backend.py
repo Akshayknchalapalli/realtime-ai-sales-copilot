@@ -3,7 +3,7 @@ import os
 import httpx
 
 BASE = os.getenv("OLLAMA_BASE_URL", "http://127.0.0.1:11434").rstrip("/")
-CHAT_MODEL = os.getenv("OLLAMA_CHAT_MODEL", "qwen3:4b")
+CHAT_MODEL = os.getenv("OLLAMA_CHAT_MODEL", "qwen3:4b-instruct")
 EMBED_MODEL = os.getenv("OLLAMA_EMBED_MODEL", "embeddinggemma")
 
 def embeddings(texts: list[str]) -> list[list[float]]:

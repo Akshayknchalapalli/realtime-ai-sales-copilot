@@ -6,6 +6,7 @@ Requires Ollama running and the models in backend/.env.
 import asyncio
 import json
 import time
+import re
 from app.main import Turn, knowledge, retrieval_query, generate, Recommendation
 from app.quality import guard
 
@@ -28,10 +29,15 @@ async def main():
             sources=await asyncio.to_thread(knowledge.search,retrieval_query(turns),k=3)
             rec=await generate(turns,sources)
             safe, corrected=guard(rec.model_dump(),query,[sid for sid,_ in sources])
+            review_flags=[]
+            if re.search(r"\\b(?:competitive pricing|flexible plans|predict churn|predict cancellations|synchronize leads with Salesforce)\\b",rec.suggestion,re.I):
+                review_flags.append("potentially_unsupported_claim")
+            if re.sub(r"[^a-z0-9]+"," ",rec.suggestion.lower()).strip()==re.sub(r"[^a-z0-9]+"," ",query.lower()).strip():
+                review_flags.append("customer_question_echo")
             results.append({"scenario":name,"expected_intent":expected,"predicted_intent":rec.intent,
               "intent_match":rec.intent==expected,"origin":"safety_fallback" if corrected else "ai_generated",
               "elapsed_ms":round((time.perf_counter()-started)*1000),
-              "raw_suggestion":rec.suggestion,"raw_reason":rec.reason,"raw_next_action":rec.next_action,
+              "review_flags":review_flags,"raw_suggestion":rec.suggestion,"raw_reason":rec.reason,"raw_next_action":rec.next_action,
               "suggestion":safe["suggestion"],"sources":safe["source_ids"]})
         except Exception as exc:
             results.append({"scenario":name,"error":str(exc)})

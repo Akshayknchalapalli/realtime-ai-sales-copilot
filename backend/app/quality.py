@@ -23,7 +23,8 @@ SALESFORCE_AFFIRMATION = re.compile(
     r".{0,80}\bsalesforce\b|\bsalesforce\b.{0,60}\b(?:is supported|is integrated|works natively)\b", re.I
 )
 CSV_SYNC = re.compile(
-    r"\b(?:csv|excel)\b.{0,90}\b(?:sync\w*|synchroniz\w*|real.time integration)\b|"\n    r"\b(?:sync\w*|synchroniz\w*)\b.{0,90}\b(?:csv|excel)\b", re.I
+    r"\b(?:csv|excel)\b.{0,90}\b(?:sync\w*|synchroniz\w*|real.time integration)\b|"
+    r"\b(?:sync\w*|synchroniz\w*)\b.{0,90}\b(?:csv|excel)\b", re.I
 )
 
 def latest_intent(text: str) -> str | None:

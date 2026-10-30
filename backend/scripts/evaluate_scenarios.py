@@ -1,6 +1,6 @@
 """Evaluate the actual Ollama + RAG recommendation path against labeled, unseen scenarios.
 
-Run from backend: python scripts/evaluate_scenarios.py
+Run from backend: python -m scripts.evaluate_scenarios
 Requires Ollama running and the models in backend/.env.
 """
 import asyncio

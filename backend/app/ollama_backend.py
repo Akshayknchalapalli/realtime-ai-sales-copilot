@@ -31,7 +31,7 @@ async def recommendation(context: str, sources: str, schema: dict) -> dict:
         "keep_alive": "30m",
         "think": False,
         "format": schema,
-        "options": {"temperature": 0.1, "num_predict": 180, "num_ctx": 4096},
+        "options": {"temperature": 0.1, "num_predict": int(os.getenv("OLLAMA_MAX_OUTPUT_TOKENS", "150")), "num_ctx": int(os.getenv("OLLAMA_CONTEXT_SIZE", "2048"))},
         "messages": [
             {"role": "system", "content": instructions},
             {"role": "user", "content": f"CONVERSATION:\n{context}\n\nKNOWLEDGE:\n{sources}\n\nReturn the JSON recommendation."},
@@ -42,4 +42,11 @@ async def recommendation(context: str, sources: str, schema: dict) -> dict:
         response.raise_for_status()
         data = response.json()
     import json
-    return json.loads(data["message"]["content"])
+    result = json.loads(data["message"]["content"])
+    result["_ollama_metrics"] = {
+        "load_ms": round(data.get("load_duration", 0) / 1_000_000),
+        "prompt_eval_ms": round(data.get("prompt_eval_duration", 0) / 1_000_000),
+        "eval_ms": round(data.get("eval_duration", 0) / 1_000_000),
+        "output_tokens": data.get("eval_count", 0),
+    }
+    return result

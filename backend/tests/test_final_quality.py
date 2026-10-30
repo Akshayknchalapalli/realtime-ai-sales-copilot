@@ -69,3 +69,20 @@ def test_model_recommendation_preserved_even_with_pricing_and_switching():
     rec=base("pricing_objection","What would make an investment worthwhile given the follow-ups you currently miss?")
     result,changed=guard(rec,"Your CRM is expensive, why should we switch?",[])
     assert not changed and result["suggestion"]==rec["suggestion"]
+
+def test_salesforce_sync_false_promise_blocked():
+    result,changed=guard(base("integration_question","FlowDesk can synchronize leads with Salesforce. Would you like to know more?"),"Can FlowDesk synchronize leads with Salesforce?",[])
+    assert changed and "synchronize leads with Salesforce" not in result["suggestion"]
+
+def test_churn_analytics_hallucination_blocked():
+    result,changed=guard(base("feature_inquiry","We can analyze customer behavior and subscription patterns to identify risk factors."),"Can you predict which customers will cancel their subscriptions?",[])
+    assert changed
+
+def test_question_echo_blocked():
+    result,changed=guard(base("feature_inquiry","Can your CRM remind representatives about pending follow-ups?"),"Can your CRM remind representatives about pending follow-ups?",[])
+    assert changed
+
+def test_true_salesforce_limitation_preserved():
+    rec=base("integration_question","We don't currently support native Salesforce integration. Which records would you need to synchronize?")
+    result,changed=guard(rec,"Can you synchronize leads with Salesforce?",[])
+    assert not changed

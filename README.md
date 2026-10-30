@@ -87,3 +87,20 @@ The tests use `AI_PROVIDER=offline` so they can run without downloaded models.
 The customer and SDR turns are entered manually or played from an example script; the tool is a *copilot* and does **not** automatically speak as the SDR. The RAG sources describe fictional FlowDesk CRM product facts. The product's seat eligibility, discounts and free trial policies are not documented, so the copilot must not promise those. An Excel/CSV import is not equivalent to continuous Salesforce synchronization.
 
 The reported latency covers retrieval + generation; it **does not include audio transcription**. Two observed local demo turns took approximately 2.77 and 2.85 seconds, but these are not statistically representative benchmarks and the model and hardware must be documented when sharing performance results. Use `python scripts/benchmark_ollama.py --models qwen3:4b qwen3:1.7b` to compare models on your own machine. Guardrails are heuristic and do not guarantee factual accuracy. All production-facing responses need human review.
+
+## AI generation vs. safety fallback
+
+The live Ollama/OpenAI pipeline now preserves normal LLM-generated recommendations. A
+narrow rule-based guard checks high-risk promises and basic speakability; when it
+detects a recognized risk, it substitutes a neutral uncertainty statement rather
+than a canned intent-specific sales pitch. The WebSocket `recommendation.ready`
+event includes `response_origin`: `ai_generated`, `safety_fallback`, or
+`offline_demo`. The React dashboard displays this next to the suggestion.
+`quality_corrected` indicates a safety substitution. Both mechanisms are
+heuristic; neither proves factual grounding. Offline mode is explicitly a
+deterministic demonstration, not LLM inference.
+
+For interview evaluation, test several unseen customer questions and record
+the answer, its response origin, relevant evidence, and measured latency.
+If an unsafe output triggers a fallback, explain why; do not present it as
+proof that Qwen authored that particular sentence.

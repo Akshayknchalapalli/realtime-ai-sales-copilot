@@ -157,3 +157,20 @@ This is an interview MVP. Recovery covers the fictional product's tested
 capabilities, not arbitrary future features. A production design would replace
 these case-specific recovery messages with a verified product capability store,
 retrieval-backed claim verification and grounded regeneration.
+
+## Raw Qwen interview evaluation mode (latest)
+
+The **live Ollama/OpenAI WebSocket** now sends the generated structured
+recommendation unchanged (except filtering source IDs to retrieved documents).
+There is **no fallback substitution**, safety recovery, intent rewriting,
+or claim-based response blocking in the live AI path. The evaluation runner
+also reports the model's exact recommendation. The dashboard labels these
+answers `Raw AI output · Unverified`.
+
+This is intentionally an **evaluation-only behavior**. The model can make
+incorrect, misleading or unsupported claims; never present its wording to a
+customer without review. The older `quality.py`, `evidence.py`,
+`pipeline.py` and `recovery.py` remain in the repository for historical
+tests but **are not called by the live AI or evaluation routes**. The
+`offline-demo` provider is still a separate deterministic mode; set
+`AI_PROVIDER=ollama` to evaluate genuine local Qwen inference.
